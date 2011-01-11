@@ -5,7 +5,9 @@
 #include "common.h"
 
 typedef struct page {
-    int reference_counter; /*if negative then end of pages*/
+    uint64_t reference_counter;
+	uint64_t number;
+	uint64_t timestamp;
     uint8_t frame_number;
 	int page_index;
     bool modified;

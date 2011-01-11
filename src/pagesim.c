@@ -11,14 +11,11 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <aio.h>
-#include <ipc.h>
-#include <sem.h>
 
 #include "page.h"
 #include "strategy.h"
 #include "pagesim.h"
 #include "common.h"
-#include "simple_sem.h"
 /*****************************************************************************/
 
 /**************************** global variables *******************************/
@@ -27,14 +24,16 @@ static struct
     page pages[513];
     uint8_t * frames[64];
     bool active;
+	uint64_t global_counter; /* may overroll after 2^64 memory I/Os */ 
     unsigned page_size;
-    unsigned mem_size;
+    unsigned mem_size;r
     unsigned addr_space_size;
     unsigned max_concurrent_operations;
+	unsigned act_concurrent_operations;
+	pthread_cond_t io_oveflow_cond;
+	pthread_mutex_t concurrent_operations_mutex;
     int swap_fd;
     pagesim_callback logger;
-	int concurrent_operations;
-
 } globals;
 /*****************************************************************************/
 
@@ -71,6 +70,7 @@ static int init_pages()
 	
 		globals.pages[i].correct = false;
 		globals.pages[i].page_index = i;
+		globals.pages[i].reference_counter = 0;
 		aio_init.aio_offset = i * globals.page_size;
 		
 		if (aio_write(&aio_init) == RETURN_ERROR) 
@@ -105,6 +105,43 @@ static int translate_address(unsigned a, unsigned *page_num, unsigned *offset)
 	else return RETURN_SUCCESS;
 }
 
+static int increase_io_operations_counter()
+{
+	if (pthread_mutex_lock(&globals.concurrent_operations_mutex) == -1)
+		return -1;
+	++globals.act_concurrent_operations;
+	if (globals.act_concurrent_operations > globals.max_concurrent_operations) 
+	{
+		if (pthread_cond_wait(globals.io_oveflow_cond,
+							  globals.concurrent_operations_mutex) == -1)
+		{
+			--globals.act_concurrent_operations;
+			return -1;
+		}
+	}
+	if (pthread_mutex_unlock(&globals.concurrent_operations_mutex) == -1)
+	{
+		--globals.act_concurrent_operations;
+		return -1;
+	}
+	
+}
+
+static int decrease_io_operations_counter()
+{
+	if (pthread_mutex_lock(&globals.concurrent_operations_mutex) == -1)
+	{	
+		--globals.act_concurrent_operations;
+		return NULL;
+	}
+	--globals.act_concurrent_operations;
+	if (pthread_mutex_unlock(&globals.concurrent_operations_mutex) == -1)
+	{
+		--globals.act_concurrent_operations;
+		return NULL;
+	}
+}
+
 static page * get_page(unsigned page_num) 
 {
 	page * current_page;
@@ -114,7 +151,8 @@ static page * get_page(unsigned page_num)
 		if (pthread_mutex_lock(&globals.pages[page_num].mutex) 
 			== RETURN_ERROR)
 			return NULL;
-		current_page = select_page(globals.pages);
+		current_page = select_page(globals.pages, globals.addr_space_size);
+		current_page->reference_counter = 0;
 		frame_num = current_page->frame_number;
 		current_page->correct = false;
 		
@@ -125,7 +163,7 @@ static page * get_page(unsigned page_num)
 		aio_init.aio_buf = &globals.frames[frame_num];
 		aio_init.aio_sigevent.sigev_notify = SIGEV_NONE;
 		
-		P(globals.concurrent_operations);
+		if (increase_io_operations_counter() == -1) return NULL;
 		if (current_page->modified) {
 			aio_write(&aio_init);
 			aio_suspend(&aio_init, NULL);
@@ -133,7 +171,7 @@ static page * get_page(unsigned page_num)
 		aio_init.aio_offset = page_num * globals.page_size;
 		aio_read(&aio_init);
 		aio_suspend(&aio_init, NULL);
-		V(globals.concurrent_operations);
+		if (decrease_io_operations_counter() == -1) return NULL;
 		
 		current_page = &globals.pages[page_num];
 		current_page->frame_number = frame_num;
@@ -167,11 +205,10 @@ static int page_sim_access_page(page_access perform_maintanance,
 		errno = EFAULT;
 		return RETURN_ERROR;
 	}
+	
 	page * current_page = get_page(page_num);
-	
 	if (current_page == NULL) return RETURN_ERROR;
-	uint8_t * current_frame = globals.frames[current_page->frame_number];
-	
+	current_page->reference_counter++;
 	perform_maintanance(v, current_page, offset);
 	
 	if (pthread_mutex_unlock(&current_page->mutex) == RETURN_ERROR)
@@ -187,10 +224,10 @@ int page_sim_init(unsigned page_size, unsigned mem_size,
     globals.page_size = page_size;
     globals.mem_size = mem_size;
     globals.addr_space_size = addr_space_size;
-    if ((globals.concurrent_operations 
-		 = sem_initialize(IPC_PRIVATE, IPC_CREAT, max_concurrent_operations - 1))
-		 == RETURN_ERROR)
-		return RETURN_ERROR;
+	globals.global_counter = 0;
+	globals.act_concurrent_operations = 0;
+	globals.concurrent_operations_mutex = PTHREAD_MUTEX_INITIALIZER;
+	globals.io_oveflow_cond = PTHREAD_CONT_INITIALIZER;
 	globals.logger = callback;
 	if (init_swap() == RETURN_ERROR) return RETURN_ERROR;
     if (init_pages() == RETURN_ERROR) return RETURN_ERROR;
@@ -213,7 +250,7 @@ int page_sim_end()
     
     for (i = 0; i < globals.mem_size; ++i)
     {
-        free( frame[i]);
+        free(frame[i]);
     }
 }
 /*****************************************************************************/
