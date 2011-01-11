@@ -6,12 +6,12 @@
 
 typedef struct page {
     uint64_t reference_counter;
-	uint64_t number;
+    uint64_t number;
     uint8_t frame_number;
-	int page_index;
+    int page_index;
     bool modified;
     bool correct;
-	pthread_mutex_t lock;
+    pthread_mutex_t lock;
 } page;
 
 #endif

@@ -34,7 +34,8 @@ static inline bool queue64_empty(queue64 q)
 static inline void queue64_push_back(queue64 q, unsigned x)
 {
 	q.container[q.tail] = x;
-	(++q.tail > 64) q.tail = 0;
+	if (++q.tail > 64)
+		q.tail = 0;
 }
 
 static inline unsigned queue64_front(queue64 q)
@@ -44,13 +45,15 @@ static inline unsigned queue64_front(queue64 q)
 
 static inline void queue64_pop_front(queue64 q)
 {
-	(++q.front > 64) ? q.tail = 0;
+	if (++q.front > 64)
+		q.tail = 0;
 }
 
 void init_metadata()
 {
 	queue64_init(current_frames);
-	for (int i = 0; i < 64; ++) {
+	for (int i = 0; i < 64; ++i)
+	{
 		queue64_push_back(current_frames, i);
 	}
 }
