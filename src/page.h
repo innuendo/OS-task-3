@@ -1,6 +1,8 @@
 #ifndef _PAGE_H
 #define _PAGE_H
 
+#include <stdint.h>
+#include <stdbool.h>
 #include <pthread.h>
 #include "common.h"
 

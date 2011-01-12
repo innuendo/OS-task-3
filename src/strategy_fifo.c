@@ -6,12 +6,12 @@
  *
  */
 
-#include <pthreads.h>
+#include <pthread.h>
 
 #include "common.h"
 #include "strategy.h"
 
-static typedef struct queue64
+typedef struct queue64
 {
 	unsigned container[65];
 	unsigned front;

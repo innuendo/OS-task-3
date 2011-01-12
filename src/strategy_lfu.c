@@ -3,7 +3,7 @@
  *
  */
 
-#include <pthreads.h>
+#include <pthread.h>
 
 #include "common.h"
 #include "strategy.h"

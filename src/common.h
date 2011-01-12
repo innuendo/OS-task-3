@@ -4,6 +4,5 @@
 #define RETURN_ERROR -1
 #define RETURN_SUCCESS 0
 
-enum bool { false, true };
 
 #endif
