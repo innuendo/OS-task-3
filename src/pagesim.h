@@ -1,6 +1,8 @@
 #ifndef _PAGESIM_H
 #define _PAGESIM_H
 
+#include <stdint.h>
+
 typedef void (*pagesim_callback)(int op, int arg1, int arg2);
 
 extern int page_sim_init(unsigned page_size, unsigned mem_size,
