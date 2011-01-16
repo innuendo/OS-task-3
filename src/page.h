@@ -6,14 +6,17 @@
 #include <pthread.h>
 #include "common.h"
 
-typedef struct page {
+typedef struct page_meta {
     uint64_t reference_counter;
-    uint64_t number;
-    uint8_t frame_number;
+    int16_t frame_number;
     int page_index;
     bool modified;
-    bool correct;
     pthread_mutex_t lock;
+} page_meta;
+
+typedef struct page {
+	uint8_t * data;
+	page_meta * meta;
 } page;
 
 #endif

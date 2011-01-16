@@ -18,7 +18,7 @@ typedef struct queue64
 	unsigned tail;
 } queue64;
 
-static queue64 current_frames;
+static queue64 current_pages;
 
 static inline void queue64_init(queue64 q)
 {
@@ -49,22 +49,22 @@ static inline void queue64_pop_front(queue64 q)
 		q.tail = 0;
 }
 
-void init_metadata()
+void init_strategy_metadata()
 {
-	queue64_init(current_frames);
+	queue64_init(current_pages);
 	for (int i = 0; i < 64; ++i)
 	{
-		queue64_push_back(current_frames, i);
+		queue64_push_back(current_pages, i);
 	}
 }
 
-void update_metadata(unsigned page_num)
+void update_strategy_metadata(unsigned page_num)
 {
-	queue64_pop_front(current_frames);
-	queue64_push_back(current_frames, page_num);
+	queue64_pop_front(current_pages);
+	queue64_push_back(current_pages, page_num);
 }
 
 page * select_page(page * pages, size_t size)
 {
-	return (pages + current_frames.front);
+	return (pages + current_pages.front);
 }
