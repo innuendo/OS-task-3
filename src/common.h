@@ -1,8 +1,11 @@
 #ifndef _COMMON_H
 #define _COMMON_H
 
-#define RETURN_ERROR -1
-#define RETURN_SUCCESS 0
+#define ERROR -1
+#define SUCCESS 0
+
+#define INC 1
+#define DEC -1
 
 #define MIN_PAGE_SIZE 4
 #define MAX_PAGE_SIZE 512

@@ -5,12 +5,13 @@
 #include <pthread.h>
 #include "pagesim.h"
 
-#define THREAD_COUNT 64
+#define THREAD_COUNT 4
 
 #define PAGE_SIZE    4
 #define PAGE_COUNT   8
 #define FRAME_COUNT  2
-#define IO_LIMIT     64
+#define IO_LIMIT     4
+#define LOOP_ITERS   100
 
 uint8_t daj_liczbe(unsigned adres) {
 	return ((uint64_t) adres * 27011 + 2) % 251;
@@ -20,7 +21,7 @@ int licznik;
 
 void my_callback(int op, int page, int frame) {
 		//return;
-	
+	/*
 	switch(op) {
 		case 1:
 			printf("Dostęp do strony %d\n", page);
@@ -45,7 +46,7 @@ void my_callback(int op, int page, int frame) {
 		case 6:
 			printf("Kończę dostęp do strony %d w ramce %d\n", page, frame);
 			break;
-	}
+	}*/
 }
 
 void *routine(void *data) {
@@ -53,26 +54,24 @@ void *routine(void *data) {
 	int rnd;
 	unsigned a;
 		//  printf("Start wątku\n");
-	while(1) {
+	for (int i = 0; i < LOOP_ITERS; ++i) {
 		rnd = rand();
 		a = (rnd >> 1) % (PAGE_SIZE * PAGE_COUNT);
 		if(rnd & 1) {
-				printf("w: A[%d] := %d\n", a, (int) daj_liczbe(a));
 			
 			assert(page_sim_set(a, daj_liczbe(a)) == 0);
 		}
 		else {
 			
 			assert(page_sim_get(a, &liczba) == 0);
-				printf("w: A[%d] = %d\n", a, (int) liczba);
-				printf("liczba = %d, daj_liczbe(a) = %d\n", liczba, daj_liczbe(a));
 			assert(liczba == daj_liczbe(a));
 		}
 		
 		licznik++;
-		if(licznik % 100000 == 0)
-			printf("Wykonano %d operacji\n", licznik);
+		printf("i = %d \t", i);
+		
 	}
+	return (void*) 1;
 }
 
 int main() {
@@ -97,28 +96,5 @@ int main() {
 	
 	for(i = 0; i < THREAD_COUNT; i++)
 		assert(pthread_join(threads[i], NULL) == 0);
-	/*
-	 uint8_t wynik;
-	 
-	 setvbuf(stdout, 0, _IONBF, 0);
-	 
-	 assert(page_sim_init(10, 2, 3, 2, my_callback) == 0);
-	 
-	 assert(page_sim_set( 0, 1) == 0);
-	 assert(page_sim_set( 5, 2) == 0);
-	 assert(page_sim_set(10, 3) == 0);
-	 assert(page_sim_set(20, 4) == 0);
-	 
-	 assert(page_sim_get(10, &wynik) == 0);
-	 printf("Mam %d\n", (int) wynik);
-	 
-	 assert(page_sim_get(0, &wynik) == 0);
-	 printf("Mam %d\n", (int) wynik);
-	 
-	 assert(page_sim_get(20, &wynik) == 0);
-	 printf("Mam %d\n", (int) wynik);
-	 
-	 assert(page_sim_get(5, &wynik) == 0);
-	 printf("Mam %d\n", (int) wynik);
-	 */
+	assert(page_sim_end() == 0);
 }
