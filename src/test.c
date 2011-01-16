@@ -5,11 +5,12 @@
 #include <pthread.h>
 #include "pagesim.h"
 
-#define THREAD_COUNT 2
+#define THREAD_COUNT 64
+
 #define PAGE_SIZE    4
 #define PAGE_COUNT   8
 #define FRAME_COUNT  2
-#define IO_LIMIT     2
+#define IO_LIMIT     64
 
 uint8_t daj_liczbe(unsigned adres) {
 	return ((uint64_t) adres * 27011 + 2) % 251;
@@ -64,6 +65,7 @@ void *routine(void *data) {
 			
 			assert(page_sim_get(a, &liczba) == 0);
 				printf("w: A[%d] = %d\n", a, (int) liczba);
+				printf("liczba = %d, daj_liczbe(a) = %d\n", liczba, daj_liczbe(a));
 			assert(liczba == daj_liczbe(a));
 		}
 		
@@ -79,6 +81,7 @@ int main() {
 	unsigned a;
 	uint8_t b;
 	licznik = 0;
+	setvbuf(stdout, 0, _IONBF, 0);
 	assert(page_sim_init(PAGE_SIZE, FRAME_COUNT, PAGE_COUNT, IO_LIMIT, &my_callback) == 0);
 	page_sim_set(1, 123);
 	page_sim_get(1, &b);
